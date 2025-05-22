@@ -22,7 +22,7 @@ namespace SubmissionParser3
         {
             if (args.Length < 3)
             {
-                Console.WriteLine("Usage: SubmissionParser3 versionID submissionID snapshotid [append]");
+                Console.WriteLine("Usage: SubmissionParser3 companyCode versionID [append]");
                 return -1;
             }
 
@@ -46,7 +46,6 @@ namespace SubmissionParser3
                 MinimumLevel = settings.ShowDebugMessages ? Serilog.Events.LogEventLevel.Debug : Serilog.Events.LogEventLevel.Information
             };
             
-
             // Set up a little logger
             //        
             log = new LoggerConfiguration()
@@ -55,6 +54,7 @@ namespace SubmissionParser3
                 .WriteTo.File(settings.logFileFullPath, rollingInterval: RollingInterval.Day, fileSizeLimitBytes: 1000000, retainedFileCountLimit: 200)   // new file every day                
                 .CreateLogger();
 
+            // Start writing to the log.  Start with some nice blank lines.
             log.Information("");
             log.Information("");
             log.Information("---------------------");
@@ -64,21 +64,20 @@ namespace SubmissionParser3
 
             // Hello, parameters!
             //
-            string versionID = args[0];
-            string submissionID = args[1];
-            string snapshotID = args[2];
+            string companyCode = args[0];
+            string versionID= args[1];
+            
 
             // Trim whitespace and junk off the end of each parm
             //
             char[] badChars = { '\t', '\r', '\n', ' ' };
 
-            snapshotID = snapshotID.TrimEnd(badChars);
+            
             versionID = versionID.TrimEnd(badChars);
-            submissionID = submissionID.TrimEnd(badChars);
+            companyCode = companyCode.TrimEnd(badChars);
 
-            log.Information($"SnapshotID: {snapshotID}");
-            log.Information($"VersionID: {versionID}");
-            log.Information($"SubmissionID: {submissionID}");
+            log.Information($"GCDB Company Code: {companyCode}");
+            log.Information($"VersionID: {versionID}");            
 
             // By default, we will APPEND to the existing files, if they exist.  If the user specifies a fourth parameter, and it is "YES" or "Y" or "TRUE", then we will start new files.
             //

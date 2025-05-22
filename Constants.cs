@@ -22,7 +22,7 @@
         public const string SQLSelectDesiredNonPayColumnNames = @"SELECT GCDB_columnHeader, CS_Label FROM NonPayCodeMap ORDER BY CS_Label";
 
         /// <summary>
-        /// Given a company ciode and a version, find the snapshotID (and some other stuff for validation)
+        /// Given a company ciode and a version, find the snapshotID (and some other stuff for validation) 
         /// </summary>
         public const string SQLFindSnapshotID = @"
         SELECT
