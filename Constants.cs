@@ -2,6 +2,11 @@
 {
     internal class Constants
     {
+        /// <summary>
+        /// Validete the company code against the COMPANYDESC table 
+        /// </summary>
+        public const string SQLValidateCompanyCode = @"SELECT COMPANYDESC.COMPANYDESC FROM admclientprod.COMPANYDESC WHERE COMPANYCODE = @companyCode";
+
         public const string SQLSelectVersion = @"
                 SELECT  
                     versionname, 
@@ -22,7 +27,7 @@
         public const string SQLSelectDesiredNonPayColumnNames = @"SELECT GCDB_columnHeader, CS_Label FROM NonPayCodeMap ORDER BY CS_Label";
 
         /// <summary>
-        /// Given a company ciode and a version, find the snapshotID (and some other stuff for validation) 
+        /// Given a company code and a version, find the snapshotID (and some other stuff for validation) 
         /// </summary>
         public const string SQLFindSnapshotID = @"
         SELECT
@@ -100,6 +105,10 @@
         FROM GdsCompensationDS.dbo.@tablename
         WHERE IDENT IS NOT null
         AND submissionid = @submissionID";
+
+        public const string SQLFindTheSubmissionID = @"
+            SELECT submissionID, versionid, company_name GdsCompensationDS.dbo.@tablename
+	        WHERE companycode = @companyCode";
 
         /// <summary>
         /// Get the list of column-names in the standard PayCodeMap table

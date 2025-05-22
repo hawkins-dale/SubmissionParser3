@@ -79,16 +79,16 @@ namespace SubmissionParser3
             log.Information($"GCDB Company Code: {companyCode}");
             log.Information($"VersionID: {versionID}");            
 
-            // By default, we will APPEND to the existing files, if they exist.  If the user specifies a fourth parameter, and it is "YES" or "Y" or "TRUE", then we will start new files.
+            // By default, we will APPEND to the existing files, if they exist.  If the user specifies a third parameter, and it is "YES" or "Y" or "TRUE", then we will start new files.
             //
             bool startNewFiles = false;
 
-            // If they pass FOUR arguments, then maybe the fourth one is a Y or a YES or something else affirming? 
+            // If they pass THREE arguments, then maybe the third one is a Y or a YES or something else affirming? 
             //
-            if (args.Length == 4)
+            if (args.Length == 3)
             {
-                string _fourthArgument = args[3].TrimEnd(badChars).ToUpper();
-                if ((_fourthArgument[..3] == "YES") || (_fourthArgument == "Y") || (_fourthArgument == "TRUE") || (_fourthArgument == "KILL"))
+                string _thirdArgument = args[3].TrimEnd(badChars).ToUpper();
+                if ((_thirdArgument[..3] == "YES") || (_thirdArgument == "Y") || (_thirdArgument == "TRUE") || (_thirdArgument == "KILL"))
                 {
                     // Yes!  They want us to DISCARD any existing EES.TXT, and JOBS.TXT and start new files.
                     //
@@ -139,10 +139,28 @@ namespace SubmissionParser3
                         return -1;
                     }
 
+                    if (!ValidateCompanyCode(companyCode, connGDS))
+                    {
+                        log.Fatal($"No company found for {companyCode}.  Quitting");
+                        return -1;
+                    }
+
+                    // Get the snapshotID for this company and version
+                    //
+                    string snapshotID = FindTheSnapshotID(companyCode, versionID, connGDS);
+                    if (string.IsNullOrEmpty(snapshotID))
+                    {
+                        log.Fatal($"No snapshotID found for {companyCode} and {versionID}.  Quitting");
+                        return -1;
+                    }
+
+                    log.Information($"SnapshotID for {companyCode} and {versionID} is {snapshotID}");
+
+                    string submissionID = FindTheSubmissionID(companyCode, snapshotID, connGDS);
 
                     // Cook the files
                     //
-                    if (CookAllFiles(snapshotID, submissionID, versionID, countryCode, connGDS, connStaging, startNewFiles))
+                    if (CookAllFiles(snapshotID, versionID, submissionID, countryCode, connGDS, connStaging, startNewFiles))
                     {
                         log.Information($"All files cooked successfully.");
                     }
@@ -162,6 +180,78 @@ namespace SubmissionParser3
                 return -1;
             }
 
+            static string FindTheSubmissionID(string companyCode, string snapshotID, SqlConnection connGDS)
+            {
+                string submissionID = "";
+                string _tablename = "datasetincumbent" + snapshotID;
+                
+                
+                using (SqlCommand cmd = new SqlCommand(Constants.SQLFindTheSubmissionID, connGDS))
+                {
+                    cmd.Parameters.AddWithValue("@companyCode", companyCode);
+                    cmd.CommandText = cmd.CommandText.Replace("@tablename", _tablename);
+
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            submissionID = reader["submissionID"].ToString();
+                            log.Information($"Submission ID for {companyCode} in  is {submissionID}");
+                        }
+                        else
+                        {
+                            log.Fatal($"No submission found for {companyCode}.  Quitting");
+                            throw new Exception($"No submission found for {companyCode}.  Quitting");
+                        }
+                    }
+                }
+                return submissionID;
+            }
+
+            static string FindTheSnapshotID(string companyCode, string versionID, SqlConnection connGDS)
+            {
+                string _snapshotID = "";
+                using (SqlCommand cmd = new SqlCommand(Constants.SQLFindSnapshotID, connGDS))
+                {
+                    cmd.Parameters.AddWithValue("@companyCode", companyCode);
+                    cmd.Parameters.AddWithValue("@versionID", versionID);
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            _snapshotID = reader["snapshotID"].ToString();
+                            string _versionName = reader["VERSIONNAME"].ToString();
+                            log.Information($"Snapshot ID for {companyCode} and {versionID} is {_snapshotID}, which is for the {_versionName} survey");
+                        }
+                        else
+                        {
+                            log.Fatal($"No snapshot found for {companyCode} and {versionID}.  Quitting");
+                            throw new Exception($"No snapshot found for {companyCode} and {versionID}.  Quitting");
+                        }
+                    }
+                }
+                return _snapshotID;
+            }
+
+            static bool ValidateCompanyCode(string companyCode, SqlConnection connGDS)
+            {
+                using (SqlCommand cmd = new SqlCommand(Constants.SQLValidateCompanyCode, connGDS))
+                {
+                    cmd.Parameters.AddWithValue("@companyCode", companyCode);
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            log.Information($"Company code {companyCode} is valid, and belongs to {reader[0]}");
+                            return true;
+                        }
+                        else
+                        {                            
+                            return false;
+                        }
+                    }
+                }
+            }
             /// <summary> Write out all the settings from the config file. </summary>
             /// 
             static void WriteTheSettingsToTheConsole(Settings settings)
@@ -211,11 +301,12 @@ namespace SubmissionParser3
                 }
                 return countryCode;
             }
+            
 
 
             /// <summary>do the work</summary>
             /// <returns>false if fail </returns>
-            static bool CookAllFiles(string snapshotID, string submissionID, string versionID, string country, SqlConnection connGDS, SqlConnection connStaging, bool startNewFiles)
+            static bool CookAllFiles(string snapshotID, string versionID, string submissionID, string country, SqlConnection connGDS, SqlConnection connStaging, bool startNewFiles)
             {
                 // the name of the incumbent data table is formed by the string "datasetincumbent" plus the snapshot ID
                 //
